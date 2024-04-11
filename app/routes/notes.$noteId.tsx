@@ -1,20 +1,24 @@
 import type { LoaderFunctionArgs } from "@remix-run/node";
-import { json } from "@remix-run/node";
+import { defer } from "@remix-run/node";
 import {
+  Await,
   isRouteErrorResponse,
   useLoaderData,
   useRouteError,
 } from "@remix-run/react";
+import { Suspense } from "react";
 import invariant from "tiny-invariant";
 
 import { getNoteDeleyed } from "~/models/note.server";
 import { requireUserId } from "~/session.server";
 
+import { Note, NoteSkeleton } from "../components/notes";
+
 export const loader = async ({ params, request }: LoaderFunctionArgs) => {
   const userId = await requireUserId(request);
   invariant(params.noteId, "Note Id is required");
 
-  const note = await getNoteDeleyed(
+  const note = getNoteDeleyed(
     {
       id: params.noteId,
       userId,
@@ -29,8 +33,9 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
     });
   }
 
-  return json({
+  return defer({
     note,
+    noteId: params.noteId,
   });
 };
 
@@ -39,9 +44,14 @@ export default function NoteDetailsPage() {
 
   return (
     <div>
-      <h3 className="text-2xl font-bold">{data.note.title}</h3>
-      <p className="py-6">{data.note.body}</p>
+      <Suspense fallback={<NoteSkeleton />} key={data.noteId}>
+        <Await resolve={data.note}>
+          <Note />
+        </Await>
+      </Suspense>
+
       <hr className="my-4" />
+      <div>Hello</div>
     </div>
   );
 }

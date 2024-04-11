@@ -1,6 +1,7 @@
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import {
+  ClientLoaderFunctionArgs,
   isRouteErrorResponse,
   useLoaderData,
   useRouteError,
@@ -9,6 +10,8 @@ import invariant from "tiny-invariant";
 
 import { getNote } from "~/models/note.server";
 import { requireUserId } from "~/session.server";
+
+import { IndexDBCache } from "../utils/cache";
 
 export const loader = async ({ params, request }: LoaderFunctionArgs) => {
   const userId = await requireUserId(request);
@@ -30,6 +33,28 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
     note,
   });
 };
+
+export const clientLoader = async ({
+  params,
+  serverLoader,
+}: ClientLoaderFunctionArgs) => {
+  const noteId = params.noteId;
+  invariant(noteId, "Note Id is required");
+
+  const cached = await IndexDBCache.getItem(noteId);
+
+  if (cached) {
+    return cached;
+  }
+
+  const data = await serverLoader();
+
+  IndexDBCache.setItem(noteId, data);
+
+  return data;
+};
+
+clientLoader.hydrate = true;
 
 export default function NoteDetailsPage() {
   const data = useLoaderData<typeof loader>();

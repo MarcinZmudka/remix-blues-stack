@@ -4,14 +4,14 @@ import bcrypt from "bcryptjs";
 const prisma = new PrismaClient();
 
 async function seed() {
-  const email = "rachel@remix.run";
+  const email = "marcin@brainhub.com";
 
   // cleanup the existing database
   await prisma.user.delete({ where: { email } }).catch(() => {
     // no worries if it doesn't exist yet
   });
 
-  const hashedPassword = await bcrypt.hash("racheliscool", 10);
+  const hashedPassword = await bcrypt.hash("password", 10);
 
   const user = await prisma.user.create({
     data: {
@@ -24,7 +24,7 @@ async function seed() {
     },
   });
 
-  await prisma.note.create({
+  const note1 = await prisma.note.create({
     data: {
       title: "My first note",
       body: "Hello, world!",
@@ -38,6 +38,19 @@ async function seed() {
       body: "Hello, world!",
       userId: user.id,
     },
+  });
+
+  await prisma.tag.createMany({
+    data: [
+      {
+        name: "Personal note",
+        noteId: note1.id,
+      },
+      {
+        name: "Family",
+        noteId: note1.id,
+      },
+    ],
   });
 
   console.log(`Database has been seeded. 🌱`);

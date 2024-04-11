@@ -7,17 +7,20 @@ import {
 } from "@remix-run/react";
 import invariant from "tiny-invariant";
 
-import { getNote } from "~/models/note.server";
+import { getNoteDeleyed } from "~/models/note.server";
 import { requireUserId } from "~/session.server";
 
 export const loader = async ({ params, request }: LoaderFunctionArgs) => {
   const userId = await requireUserId(request);
   invariant(params.noteId, "Note Id is required");
 
-  const note = await getNote({
-    id: params.noteId,
-    userId,
-  });
+  const note = await getNoteDeleyed(
+    {
+      id: params.noteId,
+      userId,
+    },
+    3000,
+  );
 
   if (!note) {
     throw new Response("Note not found", {
@@ -26,16 +29,9 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
     });
   }
 
-  return json(
-    {
-      note,
-    },
-    {
-      headers: {
-        "Cache-Control": "public, max-age=360",
-      },
-    },
-  );
+  return json({
+    note,
+  });
 };
 
 export default function NoteDetailsPage() {

@@ -26,16 +26,9 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
     });
   }
 
-  return json(
-    {
-      note,
-    },
-    {
-      headers: {
-        "Cache-Control": "public, max-age=360",
-      },
-    },
-  );
+  return json({
+    note,
+  });
 };
 
 export default function NoteDetailsPage() {

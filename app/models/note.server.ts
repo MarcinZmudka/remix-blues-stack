@@ -16,6 +16,19 @@ export function getNote({
   });
 }
 
+export async function getNoteDeleyed(
+  params: Pick<Note, "id"> & {
+    userId: User["id"];
+  },
+  deley: number,
+) {
+  await new Promise((resolve) => setTimeout(resolve, deley));
+  return getNote({
+    id: params.id,
+    userId: params.userId,
+  });
+}
+
 export function getNoteListItems({ userId }: { userId: User["id"] }) {
   return prisma.note.findMany({
     where: { userId },

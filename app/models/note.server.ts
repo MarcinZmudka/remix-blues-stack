@@ -11,7 +11,17 @@ export function getNote({
   userId: User["id"];
 }) {
   return prisma.note.findFirst({
-    select: { id: true, body: true, title: true },
+    select: {
+      id: true,
+      body: true,
+      title: true,
+      tags: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
+    },
     where: { id, userId },
   });
 }

@@ -10,6 +10,10 @@ export class IndexDBCache {
       expireIn: DEFAULT_EXPIRE_IN_MILLISECONDS,
     },
   ) {
+    const isBlocked = await this.getItem("block");
+    if (isBlocked) {
+      return;
+    }
     const expirationTime = new Date().getTime() + options.expireIn;
     const item = {
       value,
@@ -39,5 +43,13 @@ export class IndexDBCache {
 
   static async removeItem(key: string) {
     await localForage.removeItem(key);
+  }
+
+  static async block() {
+    this.setItem("block", true, { expireIn: 1000 * 60 * 60 * 24 });
+  }
+
+  static async unblock() {
+    this.removeItem("block");
   }
 }

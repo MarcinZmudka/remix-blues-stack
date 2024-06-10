@@ -4,20 +4,23 @@ import {
   ClientActionFunctionArgs,
   ClientLoaderFunctionArgs,
   isRouteErrorResponse,
-  useFetcher,
+  useFetchers,
   useLoaderData,
   useRouteError,
 } from "@remix-run/react";
+import { useEffect } from "react";
 import invariant from "tiny-invariant";
 import { z } from "zod";
 
 import { getNote } from "~/models/note.server";
 import { requireUserId } from "~/session.server";
 
-import { createTag } from "../models/tag.server";
+import { TagForm } from "../components/tag";
+import { createTag, deleteTag } from "../models/tag.server";
 import { IndexDBCache } from "../utils/cache";
 
 export const loader = async ({ params, request }: LoaderFunctionArgs) => {
+  await new Promise((res) => setTimeout(res, 2000 * Math.random()));
   const userId = await requireUserId(request);
   invariant(params.noteId, "Note Id is required");
 
@@ -51,7 +54,7 @@ export const clientLoader = async ({
     return cached;
   }
 
-  const data = await serverLoader();
+  const data = await serverLoader<{ note: { tags: string[] } }>();
 
   IndexDBCache.setItem(noteId, data);
 
@@ -74,12 +77,12 @@ export const clientAction = async ({
 export const action = async ({ params, request }: ActionFunctionArgs) => {
   invariant(params.noteId, "Note id is required");
 
-  await new Promise((res) => setTimeout(res, 2000));
+  await new Promise((res) => setTimeout(res, 2000 * Math.random()));
 
   const formDate = await request.formData();
   const { action, ...values } = Object.fromEntries(formDate);
 
-  if (action === "create_tag") {
+  if (action === "_create_tag") {
     const result = z.string().min(1).safeParse(values.name);
 
     if (!result.success) {
@@ -94,52 +97,48 @@ export const action = async ({ params, request }: ActionFunctionArgs) => {
     return json({ tag });
   }
 
+  if (action === "_delete_tag") {
+    const result = z.string().min(1).safeParse(values.id);
+
+    if (!result.success) {
+      const error = result.error.format();
+      return {
+        status: 400,
+        json: { error: error._errors.join("\n") },
+      };
+    }
+
+    await deleteTag({ id: result.data });
+    return null;
+  }
+
   return json({ success: true });
 };
 
 export default function NoteDetailsPage() {
   const data = useLoaderData<typeof loader>();
-  const fetcher = useFetcher<{
-    status: number;
-    json: {
-      errors: { name: string };
-    };
-  }>({ key: "create-tag" });
 
-  const isBusy = fetcher.state === "submitting";
+  const fetchers = useFetchers();
+
+  const fetchersState = fetchers
+    .filter((fetcher) => !fetcher.key.includes("create"))
+    .map((fetcher) => fetcher.state);
+
+  useEffect(() => {
+    if (fetchersState.some((state) => state !== "idle")) {
+      IndexDBCache.block();
+    } else {
+      IndexDBCache.unblock();
+      IndexDBCache.setItem(data.note.id, data);
+    }
+  }, [fetchersState, data]);
 
   return (
     <div>
       <h3 className="text-2xl font-bold">{data.note.title}</h3>
       <p className="py-6">{data.note.body}</p>
       <hr className="my-4" />
-      <div>
-        {data.note.tags.map((tag) => (
-          <li key={tag.id}>{tag.name}</li>
-        ))}
-
-        <fetcher.Form method="post" className="flex flex-col">
-          <div className="flex items-center space-x-2 mt-2">
-            <input
-              type="text"
-              name="name"
-              className="border border-gray-300 rounded px-2 py-1"
-            />
-            <button
-              type="submit"
-              className={`${isBusy ? "bg-gray-500" : "bg-blue-500"} text-white px-2 py-1 rounded`}
-              name="action"
-              value="create_tag"
-              disabled={isBusy}
-            >
-              Create Tag
-            </button>
-          </div>
-          <span className="text-red-500">
-            {fetcher.data?.json.errors.name ?? ""}
-          </span>
-        </fetcher.Form>
-      </div>
+      <TagForm tags={data.note.tags} />
     </div>
   );
 }

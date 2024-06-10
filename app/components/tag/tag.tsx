@@ -9,8 +9,7 @@ interface TagProps {
 export function Tag({ id, name, optimistic }: TagProps) {
   const fetcher = useFetcher<{ error: string }>();
 
-  const isDeleting =
-    fetcher.state === "submitting" && fetcher.formData?.get("id") === id;
+  const isDeleting = fetcher.formData?.get("id") === id;
 
   const isDeleteError = !!fetcher.data?.error;
   return (
